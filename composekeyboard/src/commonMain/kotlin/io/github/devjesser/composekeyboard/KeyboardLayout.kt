@@ -87,15 +87,18 @@ class KeyboardLayoutSet(
                     ),
                 ),
             ),
+            // Symbols on the left, a numpad on the right, always together in one page — the
+            // layout of the Windows TabTip's "&123" page. Each row's keys still add up to the
+            // same total weight (7 symbol columns + 3 numpad columns + 1.5 for the right-hand
+            // action key = 11.5), so it lines up like every other page; no separate "block"
+            // concept was needed for this.
             symbols = KeyboardLayout(
                 rows = listOf(
-                    chars("1234567890") + SoftKey.Action(KeyAction.Backspace, 1.5f, repeatable = true),
-                    chars("@#\$%&*+()/") + SoftKey.Character("!", weight = 0.75f) + SoftKey.Character("?", weight = 0.75f),
-                    listOf<SoftKey>(SoftKey.Gap(0.5f)) + chars("-_=:;\"'~^") + SoftKey.Action(KeyAction.Enter, 2f),
-                    listOf<SoftKey>(SoftKey.Gap(1.5f)) + chars("\\|<>[]{}") + chars(",."),
-                    listOf(
-                        SoftKey.Action(KeyAction.ShowLetters, 1.5f),
-                        SoftKey.Action(KeyAction.Space, 8.5f),
+                    chars("!@#\$%&*") + chars("123") + SoftKey.Action(KeyAction.Backspace, 1.5f, repeatable = true),
+                    chars("()-_=+~") + chars("456") + SoftKey.Gap(1.5f),
+                    chars("\\;:\"'/^") + chars("789") + SoftKey.Action(KeyAction.Enter, 1.5f),
+                    listOf(SoftKey.Action(KeyAction.ShowLetters, 1f), SoftKey.Action(KeyAction.Space, 6f)) +
+                        listOf(SoftKey.Character("0", weight = 2f), SoftKey.Character(".")) +
                         SoftKey.Action(KeyAction.Dismiss, 1.5f),
                     ),
                 ),
