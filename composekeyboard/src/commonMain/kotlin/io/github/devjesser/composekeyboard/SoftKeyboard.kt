@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /** What the Enter key shows. Icon for [Return]; a text label for the others. */
 enum class EnterKeyStyle(internal val label: String?) {
@@ -131,10 +132,10 @@ private fun KeyButton(
                         if (key is SoftKey.Action && key.repeatable) {
                             coroutineScope {
                                 val repeater = launch {
-                                    delay(RepeatDelayMs)
+                                    delay(RepeatDelayMs.milliseconds)
                                     while (true) {
                                         state.onKey(key, currentInput)
-                                        delay(RepeatIntervalMs)
+                                        delay(RepeatIntervalMs.milliseconds)
                                     }
                                 }
                                 tryAwaitRelease()
