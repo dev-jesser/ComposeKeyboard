@@ -169,7 +169,7 @@ private fun KeyButton(
                 }
                 KeyAction.ShowSymbols -> KeyLabel("?123", content, theme.dimensions.labelFontSize)
                 KeyAction.ShowLetters -> KeyLabel("ABC", content, theme.dimensions.labelFontSize)
-                KeyAction.Space -> Unit
+                KeyAction.Space -> KeyLabel("Space", content, theme.dimensions.labelFontSize)
             }
             is SoftKey.Gap -> Unit
         }
