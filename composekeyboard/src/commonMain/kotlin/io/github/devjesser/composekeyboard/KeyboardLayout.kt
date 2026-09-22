@@ -100,7 +100,6 @@ class KeyboardLayoutSet(
                     listOf(SoftKey.Action(KeyAction.ShowLetters, 1f), SoftKey.Action(KeyAction.Space, 6f)) +
                         listOf(SoftKey.Character("0", weight = 2f), SoftKey.Character(".")) +
                         SoftKey.Action(KeyAction.Dismiss, 1.5f),
-                    ),
                 ),
             ),
             numeric = KeyboardLayout(
