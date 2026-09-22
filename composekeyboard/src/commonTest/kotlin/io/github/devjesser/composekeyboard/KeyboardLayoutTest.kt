@@ -38,4 +38,14 @@ class KeyboardLayoutTest {
         val typed = layouts.numeric.rows.flatten().filterIsInstance<SoftKey.Character>().map { it.lower }.toSet()
         ("0123456789./-").forEach { assertTrue(it.toString() in typed, "missing $it") }
     }
+
+    @Test
+    fun symbolsPageHasBothSymbolsAndANumpadTogether() {
+        val typed = layouts.symbols.rows.flatten().filterIsInstance<SoftKey.Character>().map { it.lower }.toSet()
+        // Numpad digits...
+        ('0'..'9').forEach { assertTrue(it.toString() in typed, "missing digit $it") }
+        // ...alongside symbols, on the same page (the TabTip "&123" style).
+        listOf("!", "@", "#", "\$", "%", "&", "(", ")", "-", "_", "=", "+", "\"", "'", "/", "^")
+            .forEach { assertTrue(it in typed, "missing symbol $it") }
+    }
 }
