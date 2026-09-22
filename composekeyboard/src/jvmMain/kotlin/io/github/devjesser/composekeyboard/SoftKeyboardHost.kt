@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.PlatformTextInputMethodRequest
 import androidx.compose.ui.platform.PlatformTextInputSession
 import androidx.compose.ui.text.input.TextEditorState
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Tracks which text field currently owns the platform text-input session. */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -111,7 +112,7 @@ fun SoftKeyboardHost(
         val wanted = enabled && request != null
         val visible by produceState(initialValue = false, key1 = wanted) {
             if (wanted) value = true else {
-                delay(150)
+                delay(150.milliseconds)
                 value = false
             }
         }
