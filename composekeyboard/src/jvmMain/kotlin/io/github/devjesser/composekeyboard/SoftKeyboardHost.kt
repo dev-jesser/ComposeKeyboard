@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -20,14 +21,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.InterceptPlatformTextInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.PlatformTextInputInterceptor
 import androidx.compose.ui.platform.PlatformTextInputMethodRequest
 import androidx.compose.ui.platform.PlatformTextInputSession
 import androidx.compose.ui.text.input.TextEditorState
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
+
+private const val MinHeightFraction = 0.2f
+private const val MaxHeightFraction = 0.8f
 
 /** Tracks which text field currently owns the platform text-input session. */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -53,6 +60,10 @@ private class LastRequest {
  *   (for example when a physical keyboard is attached).
  * @param dismissOnOutsideTap clear focus (and hide the keyboard) when the user taps content
  *   that is not a text field.
+ * @param heightFraction total height of the keyboard as a fraction of this host's height, e.g.
+ *   `0.5f` for about what the Windows TabTip takes on a 1280x800 screen. Unlike a size in dp, it
+ *   follows the real window, so it stays right on a different screen. Every page then has the
+ *   same height. Clamped to 0.2..0.8. `null` (the default) uses `theme.dimensions.keyHeight`.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -63,12 +74,15 @@ fun SoftKeyboardHost(
     layouts: KeyboardLayoutSet = KeyboardLayoutSet.EnglishQwerty,
     theme: KeyboardTheme = KeyboardTheme.Dark,
     dismissOnOutsideTap: Boolean = true,
+    heightFraction: Float? = null,
     content: @Composable () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val active = remember { ActiveTextInput() }
     val last = remember { LastRequest() }
     val keyboardState = remember { KeyboardState() }
+    val density = LocalDensity.current
+    var hostHeightPx by remember { mutableIntStateOf(0) }
 
     val interceptor = remember(active) {
         object : PlatformTextInputInterceptor {
@@ -121,6 +135,14 @@ fun SoftKeyboardHost(
             displayed?.let { DesktopKeyboardInput(it) { focusManager.clearFocus() } }
         }
 
+        // Total keyboard height when sized relative to the host; Unspecified = size from key height.
+        val keyboardHeight: Dp =
+            if (heightFraction == null || hostHeightPx == 0) {
+                Dp.Unspecified
+            } else {
+                with(density) { (hostHeightPx * heightFraction.coerceIn(MinHeightFraction, MaxHeightFraction)).toDp() }
+            }
+
         val keyboard: @Composable () -> Unit = {
             if (displayed != null && input != null) {
                 SoftKeyboard(
@@ -129,6 +151,7 @@ fun SoftKeyboardHost(
                     layouts = layouts,
                     enterKeyStyle = enterKeyStyleFor(displayed.imeOptions),
                     theme = theme,
+                    height = keyboardHeight,
                 )
             }
         }
@@ -142,7 +165,7 @@ fun SoftKeyboardHost(
         }
 
         when (placement) {
-            KeyboardPlacement.Push -> Column(modifier.fillMaxSize()) {
+            KeyboardPlacement.Push -> Column(modifier.fillMaxSize().onSizeChanged { hostHeightPx = it.height }) {
                 Box(Modifier.weight(1f).fillMaxWidth().then(contentModifier)) { content() }
                 AnimatedVisibility(
                     visible = visible,
@@ -150,7 +173,7 @@ fun SoftKeyboardHost(
                     exit = slideOutVertically { it },
                 ) { keyboard() }
             }
-            KeyboardPlacement.Overlay -> Box(modifier.fillMaxSize()) {
+            KeyboardPlacement.Overlay -> Box(modifier.fillMaxSize().onSizeChanged { hostHeightPx = it.height }) {
                 Box(Modifier.fillMaxSize().then(contentModifier)) { content() }
                 AnimatedVisibility(
                     visible = visible,

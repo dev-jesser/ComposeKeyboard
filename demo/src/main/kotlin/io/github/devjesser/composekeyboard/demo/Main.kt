@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -52,16 +54,22 @@ fun main() = application {
 fun DemoApp() {
     var dark by remember { mutableStateOf(true) }
     var overlay by remember { mutableStateOf(false) }
+    var sizeByFraction by remember { mutableStateOf(true) }
+    var fraction by remember { mutableStateOf(0.5f) }
 
     MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
         Surface(Modifier.fillMaxSize()) {
             SoftKeyboardHost(
                 theme = if (dark) KeyboardTheme.Dark else KeyboardTheme.Light,
                 placement = if (overlay) KeyboardPlacement.Overlay else KeyboardPlacement.Push,
+                // 0.5 is about what the Windows TabTip takes on a 1280x800 screen.
+                heightFraction = if (sizeByFraction) fraction else null,
             ) {
                 DemoForm(
                     dark = dark, onDark = { dark = it },
                     overlay = overlay, onOverlay = { overlay = it },
+                    sizeByFraction = sizeByFraction, onSizeByFraction = { sizeByFraction = it },
+                    fraction = fraction, onFraction = { fraction = it },
                 )
             }
         }
@@ -74,6 +82,10 @@ private fun DemoForm(
     onDark: (Boolean) -> Unit,
     overlay: Boolean,
     onOverlay: (Boolean) -> Unit,
+    sizeByFraction: Boolean,
+    onSizeByFraction: (Boolean) -> Unit,
+    fraction: Float,
+    onFraction: (Float) -> Unit,
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -92,6 +104,14 @@ private fun DemoForm(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Dark keyboard"); Switch(dark, onDark)
             Text("Overlay instead of push"); Switch(overlay, onOverlay)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Size as % of window"); Switch(sizeByFraction, onSizeByFraction)
+            Slider(
+                value = fraction, onValueChange = onFraction, valueRange = 0.3f..0.7f,
+                enabled = sizeByFraction, modifier = Modifier.width(240.dp),
+            )
+            Text(if (sizeByFraction) "${(fraction * 100).toInt()}%" else "fixed key height")
         }
 
         OutlinedTextField(

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,11 +28,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /** What the Enter key shows. Icon for [Return]; a text label for the others. */
@@ -54,6 +58,12 @@ private const val RepeatIntervalMs = 55L
  *
  * Keys deliberately use raw pointer input rather than `clickable`, so pressing them never
  * takes keyboard focus away from the text field being edited.
+ *
+ * @param height total height of the keyboard. When specified, every page has exactly this height
+ *   and its rows share it equally (pages with fewer rows get taller keys), so the keyboard never
+ *   changes height when switching pages. When left unspecified, each key is
+ *   `theme.dimensions.keyHeight` tall and a page's height follows from its number of rows.
+ *   `SoftKeyboardHost(heightFraction = ...)` computes this from the window size for you.
  */
 @Composable
 fun SoftKeyboard(
@@ -63,25 +73,30 @@ fun SoftKeyboard(
     layouts: KeyboardLayoutSet = KeyboardLayoutSet.EnglishQwerty,
     enterKeyStyle: EnterKeyStyle = EnterKeyStyle.Return,
     theme: KeyboardTheme = KeyboardTheme.Dark,
+    height: Dp = Dp.Unspecified,
 ) {
     val layout = layouts.layoutFor(state.page)
+    val fixedHeight = height.isSpecified
     val dimensions = theme.dimensions
     val cellPadding = dimensions.keySpacing / 2
 
     Box(
         modifier = modifier
+            .testTag("softKeyboard")
             .fillMaxWidth()
+            .then(if (fixedHeight) Modifier.height(height) else Modifier)
             .background(theme.colors.background)
             // Swallow taps on the keyboard background so they never reach content underneath.
             .pointerInput(Unit) { detectTapGestures { } }
             .padding(dimensions.outerPadding - cellPadding),
         contentAlignment = Alignment.TopCenter,
     ) {
-        Column(Modifier.fillMaxWidth(layout.widthFraction)) {
+        Column(Modifier.fillMaxWidth(layout.widthFraction).then(if (fixedHeight) Modifier.fillMaxHeight() else Modifier)) {
             layout.rows.forEach { row ->
-                Row(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().then(if (fixedHeight) Modifier.weight(1f) else Modifier)) {
                     row.forEach { key ->
-                        val cell = Modifier.weight(key.weight).height(dimensions.keyHeight)
+                        val cell = Modifier.weight(key.weight)
+                            .then(if (fixedHeight) Modifier.fillMaxHeight() else Modifier.height(dimensions.keyHeight))
                         if (key is SoftKey.Gap) {
                             Spacer(cell)
                         } else {
@@ -104,7 +119,10 @@ private fun KeyButton(
     modifier: Modifier,
 ) {
     val colors = theme.colors
-    var pressed by remember { mutableStateOf(false) }
+    // Keyed on [key]: composable slots are reused when the page changes (e.g. the "ABC" key's slot
+    // becomes the Shift key's), and a stale "pressed" flag would otherwise stay stuck on the new key.
+    var pressed by remember(key) { mutableStateOf(false) }
+    val feedback = remember(key) { PressFeedback() }
     // The input target changes whenever another text field takes focus; always use the latest.
     val currentInput by rememberUpdatedState(input)
 
@@ -126,6 +144,7 @@ private fun KeyButton(
             .pointerInput(key) {
                 detectTapGestures(
                     onPress = {
+                        val press = feedback.pressStarted()
                         pressed = true
                         // Fire on press (not release) so fast typing feels immediate.
                         state.onKey(key, currentInput)
@@ -144,7 +163,11 @@ private fun KeyButton(
                         } else {
                             tryAwaitRelease()
                         }
-                        pressed = false
+                        // Touch screens can deliver down and up in the same instant; hold the pressed
+                        // look long enough to be seen. A newer press of this key takes over from us.
+                        val wait = feedback.remainingVisibleTime(press)
+                        if (wait > Duration.ZERO) delay(wait)
+                        if (feedback.mayClear(press)) pressed = false
                     },
                 )
             },

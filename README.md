@@ -111,8 +111,24 @@ SoftKeyboardHost(
     layouts = KeyboardLayoutSet.EnglishQwerty,        // bring your own pages/keys
     theme = KeyboardTheme.Dark,                       // KeyboardTheme.Light, or KeyboardTheme(colors, dimensions)
     dismissOnOutsideTap = true,                       // tapping non-text-field content unfocuses
+    heightFraction = null,                            // e.g. 0.5f = half the window height (see "Sizing")
 ) { /* content */ }
 ```
+
+### Sizing
+
+By default every key is `theme.dimensions.keyHeight` tall (56dp), so the keyboard's height depends on the
+number of rows on the current page and does not adapt to the screen. To match the Windows TabTip, which
+scales with the screen and takes about half of a 1280x800 display, size it relative to the window instead:
+
+```kotlin
+SoftKeyboardHost(heightFraction = 0.5f) { MyApp() }
+```
+
+Every page then has exactly that height (the rows share it equally, so the 4-row symbols page gets taller keys
+than the 5-row letters page) and the keyboard no longer jumps in height when switching pages. The value is clamped
+to 0.2-0.8. Font sizes do not scale with it; raise `KeyboardDimensions.keyFontSize` / `labelFontSize` if
+bigger keys call for bigger text. The demo has a slider for trying values.
 
 ### When the keyboard hides
 
@@ -172,7 +188,9 @@ specific.
   a separate `Dialog` / `DialogWindow` / `Popup` window are not covered by the host of the main window; put a
   `SoftKeyboardHost` inside the dialog's content too.
 - **Touch input reaches Compose as mouse events on Windows**, so multi-touch typing (two fingers at once) is
-  not supported and keys trigger when the finger presses (as reported by the OS).
+  not supported. Windows can deliver a tap as mouse-down and mouse-up back to back, so the pressed-key highlight
+  is held for a minimum of about 120 ms to be visible. For the same reason, press-and-hold behaviour such as
+  Backspace auto-repeat may not work on a touch screen.
 - English QWERTY only for now; the layout model is data (`KeyboardLayoutSet`) so adding one is easy.
 
 ## Migrating from a TabTip / `osk` wrapper

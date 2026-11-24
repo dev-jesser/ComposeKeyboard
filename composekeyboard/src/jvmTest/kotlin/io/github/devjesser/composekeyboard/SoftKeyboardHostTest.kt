@@ -12,8 +12,10 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runComposeUiTest
@@ -188,5 +190,33 @@ class SoftKeyboardHostTest {
         focus("field")
         waitForIdle()
         onNodeWithTag("key:h").assertDoesNotExist()
+    }
+
+    @Test
+    fun heightFractionSizesEveryPageRelativeToTheHost() = runComposeUiTest {
+        var text by mutableStateOf("")
+        setContent {
+            SoftKeyboardHost(heightFraction = 0.5f) {
+                BasicTextField(value = text, onValueChange = { text = it }, modifier = Modifier.testTag("field"))
+            }
+        }
+        focus("field")
+        awaitKey("h")
+        waitForIdle()
+
+        fun heightOf(tag: String?): Float {
+            val node = if (tag == null) onRoot() else onNodeWithTag(tag)
+            val bounds = node.getBoundsInRoot()
+            return (bounds.bottom - bounds.top).value
+        }
+
+        val host = heightOf(null)
+        assertEquals(host * 0.5f, heightOf("softKeyboard"), 2f, "letters page should be half the host height")
+
+        // The symbols page has fewer rows but must keep the same total height.
+        press("ShowSymbols")
+        awaitKey("ShowLetters")
+        waitForIdle()
+        assertEquals(host * 0.5f, heightOf("softKeyboard"), 2f, "symbols page should be half the host height")
     }
 }
