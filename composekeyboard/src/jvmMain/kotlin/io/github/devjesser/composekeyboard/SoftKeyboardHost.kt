@@ -1,6 +1,9 @@
 package io.github.devjesser.composekeyboard
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -9,12 +12,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -30,6 +35,8 @@ import androidx.compose.ui.platform.PlatformTextInputMethodRequest
 import androidx.compose.ui.platform.PlatformTextInputSession
 import androidx.compose.ui.text.input.TextEditorState
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -64,6 +71,9 @@ private class LastRequest {
  *   `0.5f` for about what the Windows TabTip takes on a 1280x800 screen. Unlike a size in dp, it
  *   follows the real window, so it stays right on a different screen. Every page then has the
  *   same height. Clamped to 0.2..0.8. `null` (the default) uses `theme.dimensions.keyHeight`.
+ *
+ * The content can react to the keyboard through [LocalSoftKeyboard] (is it showing, how tall will
+ * it be) and, with [KeyboardPlacement.Overlay], [softKeyboardPadding].
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -124,12 +134,13 @@ fun SoftKeyboardHost(
 
         // Small grace period so moving focus from one field to another does not flicker.
         val wanted = enabled && request != null
-        val visible by produceState(initialValue = false, key1 = wanted) {
+        val visibleState = produceState(initialValue = false, key1 = wanted) {
             if (wanted) value = true else {
                 delay(150.milliseconds)
                 value = false
             }
         }
+        val visible = visibleState.value
 
         val input = remember(displayed) {
             displayed?.let { DesktopKeyboardInput(it) { focusManager.clearFocus() } }
@@ -142,6 +153,27 @@ fun SoftKeyboardHost(
             } else {
                 with(density) { (hostHeightPx * heightFraction.coerceIn(MinHeightFraction, MaxHeightFraction)).toDp() }
             }
+
+        // What the content may ask about the keyboard (LocalSoftKeyboard). Each value is handed over
+        // as State and read lazily by the info object, so readers recompose precisely and there is
+        // no write-back during composition.
+        val expectedHeight: Dp = when {
+            !enabled -> 0.dp
+            heightFraction == null -> layouts.tallestNaturalHeight(theme.dimensions)
+            keyboardHeight.isSpecified -> keyboardHeight
+            else -> 0.dp // sized relative to the host, which has not been measured yet
+        }
+        val hostHeight: Dp = with(density) { hostHeightPx.toDp() }
+        val expectedState = rememberUpdatedState(expectedHeight)
+        val hostHeightState = rememberUpdatedState(hostHeight)
+        val currentHeightState = animateDpAsState(
+            targetValue = if (visible) expectedHeight else 0.dp,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "softKeyboardHeight",
+        )
+        val info = remember(visibleState, expectedState, currentHeightState, hostHeightState) {
+            SoftKeyboardInfoImpl(visibleState, expectedState, currentHeightState, hostHeightState)
+        }
 
         val keyboard: @Composable () -> Unit = {
             if (displayed != null && input != null) {
@@ -164,23 +196,25 @@ fun SoftKeyboardHost(
             Modifier
         }
 
-        when (placement) {
-            KeyboardPlacement.Push -> Column(modifier.fillMaxSize().onSizeChanged { hostHeightPx = it.height }) {
-                Box(Modifier.weight(1f).fillMaxWidth().then(contentModifier)) { content() }
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = slideInVertically { it },
-                    exit = slideOutVertically { it },
-                ) { keyboard() }
-            }
-            KeyboardPlacement.Overlay -> Box(modifier.fillMaxSize().onSizeChanged { hostHeightPx = it.height }) {
-                Box(Modifier.fillMaxSize().then(contentModifier)) { content() }
-                AnimatedVisibility(
-                    visible = visible,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    enter = slideInVertically { it },
-                    exit = slideOutVertically { it },
-                ) { keyboard() }
+        CompositionLocalProvider(LocalSoftKeyboard provides info) {
+            when (placement) {
+                KeyboardPlacement.Push -> Column(modifier.fillMaxSize().onSizeChanged { hostHeightPx = it.height }) {
+                    Box(Modifier.weight(1f).fillMaxWidth().then(contentModifier)) { content() }
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = slideInVertically { it },
+                        exit = slideOutVertically { it },
+                    ) { keyboard() }
+                }
+                KeyboardPlacement.Overlay -> Box(modifier.fillMaxSize().onSizeChanged { hostHeightPx = it.height }) {
+                    Box(Modifier.fillMaxSize().then(contentModifier)) { content() }
+                    AnimatedVisibility(
+                        visible = visible,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                        enter = slideInVertically { it },
+                        exit = slideOutVertically { it },
+                    ) { keyboard() }
+                }
             }
         }
     }
