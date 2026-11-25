@@ -130,6 +130,44 @@ than the 5-row letters page) and the keyboard no longer jumps in height when swi
 to 0.2-0.8. Font sizes do not scale with it; raise `KeyboardDimensions.keyFontSize` / `labelFontSize` if
 bigger keys call for bigger text. The demo has a slider for trying values.
 
+### Reacting to the keyboard
+
+Content inside the host can ask what the keyboard is doing through `LocalSoftKeyboard`:
+
+| Property | Meaning |
+|---|---|
+| `isVisible` | True from the moment a field wants the keyboard until it is gone (the value that drives the slide animation). |
+| `expectedHeight` | The height the keyboard will have once fully shown, known **before** it appears. `0.dp` when the host is disabled. |
+| `currentHeight` | How much of that is on screen right now (animated). For effects, not for choosing a layout. |
+| `hostHeight` | The full height of the host, with or without the keyboard. |
+
+With `heightFraction`, `expectedHeight` is exactly the keyboard height. Without it, it is the height of the tallest
+page (the letters page); the symbols and numeric pages are one row shorter. `expectedHeight` and `hostHeight` are `0.dp`
+for the very first frame, until the host has been measured. Outside a host the local reports a hidden keyboard of
+`0.dp`, so screens that read it still work in previews and tests.
+
+A typical use is switching to a more compact layout when there is little room left above the keyboard:
+
+```kotlin
+val keyboard = LocalSoftKeyboard.current
+val spaceAbove = keyboard.hostHeight - keyboard.expectedHeight
+val compact = keyboard.hostHeight > 0.dp && spaceAbove < 400.dp
+
+if (compact) CompactForm() else StackedForm()   // e.g. username and password side by side
+```
+
+> **Pitfall:** do not choose a layout from your own content's live height (for example `BoxWithConstraints.maxHeight`).
+> With `KeyboardPlacement.Push` the content shrinks while the keyboard slides in, so the layout would flip halfway
+> through the animation. `hostHeight - expectedHeight` is the same number before, during and after the animation, and
+> it does not depend on the placement.
+
+Put forms in a `verticalScroll` container: Compose scrolls a focused field into view above the keyboard by itself.
+With `KeyboardPlacement.Overlay` the keyboard covers the content instead of shrinking it, so also add
+`Modifier.softKeyboardPadding()` to the scrollable container (like `imePadding()`); it lays the content out in the
+space above the keyboard and follows it as it slides. It is not needed with `Push`.
+
+The demo has an "Adaptive login demo" screen that does exactly this.
+
 ### When the keyboard hides
 
 - The field loses focus (tap elsewhere, or focus moves to a non-text element).
