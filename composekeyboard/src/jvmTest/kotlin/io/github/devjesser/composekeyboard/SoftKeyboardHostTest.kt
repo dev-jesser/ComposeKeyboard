@@ -1,5 +1,7 @@
 package io.github.devjesser.composekeyboard
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,8 +24,10 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -47,6 +51,12 @@ class SoftKeyboardHostTest {
 
     private fun ComposeUiTest.awaitKeyGone(id: String) {
         waitUntil(timeoutMillis = 5_000) { onAllNodesWithTag("key:$id").fetchSemanticsNodes().isEmpty() }
+    }
+
+    private fun ComposeUiTest.boundsHeight(tag: String?): Float {
+        val node = if (tag == null) onRoot() else onNodeWithTag(tag)
+        val bounds = node.getBoundsInRoot()
+        return (bounds.bottom - bounds.top).value
     }
 
     @Test
@@ -218,5 +228,124 @@ class SoftKeyboardHostTest {
         awaitKey("ShowLetters")
         waitForIdle()
         assertEquals(host * 0.5f, heightOf("softKeyboard"), 2f, "symbols page should be half the host height")
+    }
+
+    // ---- LocalSoftKeyboard ----
+
+    @Test
+    fun outsideAHostTheKeyboardInfoReportsHidden() = runComposeUiTest {
+        var info: SoftKeyboardInfo? = null
+        setContent { info = LocalSoftKeyboard.current }
+        waitForIdle()
+
+        val keyboard = checkNotNull(info)
+        assertFalse(keyboard.isVisible)
+        assertEquals(0f, keyboard.expectedHeight.value)
+        assertEquals(0f, keyboard.currentHeight.value)
+        assertEquals(0f, keyboard.hostHeight.value)
+    }
+
+    private fun checkInfoFollowsTheKeyboard(placement: KeyboardPlacement, fraction: Float?) = runComposeUiTest {
+        var text by mutableStateOf("")
+        var info: SoftKeyboardInfo? = null
+        setContent {
+            SoftKeyboardHost(placement = placement, heightFraction = fraction) {
+                info = LocalSoftKeyboard.current
+                BasicTextField(value = text, onValueChange = { text = it }, modifier = Modifier.testTag("field"))
+            }
+        }
+        waitForIdle()
+        val keyboard = checkNotNull(info)
+
+        // Before any field has focus: hidden, but it already knows how tall it will be.
+        val host = boundsHeight(null)
+        assertFalse(keyboard.isVisible)
+        assertEquals(host, keyboard.hostHeight.value, 1f, "host height")
+        val expectedBefore = if (fraction != null) {
+            host * fraction
+        } else {
+            KeyboardLayoutSet.EnglishQwerty.tallestNaturalHeight(KeyboardDimensions()).value
+        }
+        assertEquals(expectedBefore, keyboard.expectedHeight.value, 1f, "expected height before the keyboard shows")
+        assertEquals(0f, keyboard.currentHeight.value, 1f, "nothing is on screen yet")
+
+        // A field gets focus: it becomes visible and the height on screen grows to the expected one.
+        focus("field")
+        awaitKey("h")
+        assertTrue(keyboard.isVisible)
+        waitUntil(timeoutMillis = 5_000) { abs(keyboard.currentHeight.value - keyboard.expectedHeight.value) < 1f }
+        assertEquals(boundsHeight("softKeyboard"), keyboard.expectedHeight.value, 1f, "expected vs real height")
+        assertEquals(expectedBefore, keyboard.expectedHeight.value, 1f, "expected height does not change on show")
+
+        // The hide key: not visible any more (after the grace period) and nothing is on screen.
+        press("Dismiss")
+        waitUntil(timeoutMillis = 5_000) { !keyboard.isVisible }
+        waitUntil(timeoutMillis = 5_000) { keyboard.currentHeight.value < 1f }
+    }
+
+    @Test
+    fun infoFollowsTheKeyboardWithPushAndHeightFraction() = checkInfoFollowsTheKeyboard(KeyboardPlacement.Push, 0.5f)
+
+    @Test
+    fun infoFollowsTheKeyboardWithOverlayAndHeightFraction() =
+        checkInfoFollowsTheKeyboard(KeyboardPlacement.Overlay, 0.5f)
+
+    @Test
+    fun infoFollowsTheKeyboardWithPushAndKeyHeight() = checkInfoFollowsTheKeyboard(KeyboardPlacement.Push, null)
+
+    @Test
+    fun infoFollowsTheKeyboardWithOverlayAndKeyHeight() = checkInfoFollowsTheKeyboard(KeyboardPlacement.Overlay, null)
+
+    private fun checkDisabledHostReportsNoKeyboard(placement: KeyboardPlacement) = runComposeUiTest {
+        var text by mutableStateOf("")
+        var info: SoftKeyboardInfo? = null
+        setContent {
+            SoftKeyboardHost(enabled = false, placement = placement, heightFraction = 0.5f) {
+                info = LocalSoftKeyboard.current
+                BasicTextField(value = text, onValueChange = { text = it }, modifier = Modifier.testTag("field"))
+            }
+        }
+        focus("field")
+        waitForIdle()
+
+        val keyboard = checkNotNull(info)
+        assertFalse(keyboard.isVisible)
+        assertEquals(0f, keyboard.expectedHeight.value)
+        assertEquals(0f, keyboard.currentHeight.value, 0.5f)
+    }
+
+    @Test
+    fun disabledPushHostReportsNoKeyboard() = checkDisabledHostReportsNoKeyboard(KeyboardPlacement.Push)
+
+    @Test
+    fun disabledOverlayHostReportsNoKeyboard() = checkDisabledHostReportsNoKeyboard(KeyboardPlacement.Overlay)
+
+    @Test
+    fun softKeyboardPaddingKeepsOverlayContentAboveTheKeyboard() = runComposeUiTest {
+        var text by mutableStateOf("")
+        var info: SoftKeyboardInfo? = null
+        setContent {
+            SoftKeyboardHost(placement = KeyboardPlacement.Overlay, heightFraction = 0.5f) {
+                info = LocalSoftKeyboard.current
+                Box(Modifier.fillMaxSize().softKeyboardPadding()) {
+                    Box(Modifier.fillMaxSize().testTag("content")) {
+                        BasicTextField(value = text, onValueChange = { text = it }, modifier = Modifier.testTag("field"))
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        val keyboard = checkNotNull(info)
+        val host = boundsHeight(null)
+        assertEquals(host, boundsHeight("content"), 1f, "content fills the host while the keyboard is hidden")
+
+        focus("field")
+        awaitKey("h")
+        waitUntil(timeoutMillis = 5_000) { abs(keyboard.currentHeight.value - keyboard.expectedHeight.value) < 1f }
+        waitForIdle()
+        assertEquals(
+            host - keyboard.expectedHeight.value, boundsHeight("content"), 2f,
+            "content is laid out above the keyboard",
+        )
     }
 }
