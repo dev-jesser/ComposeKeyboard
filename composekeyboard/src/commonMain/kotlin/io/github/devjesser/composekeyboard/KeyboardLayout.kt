@@ -10,6 +10,9 @@ enum class KeyAction {
     Space,
     ShowLetters,
     ShowSymbols,
+
+    /** From the symbols page to the second page of less common symbols. */
+    ShowMoreSymbols,
     Dismiss,
 }
 
@@ -56,7 +59,7 @@ class KeyboardLayout(
     val widthFraction: Float = 1f,
 )
 
-enum class KeyboardPage { Letters, Symbols, Numeric }
+enum class KeyboardPage { Letters, Symbols, MoreSymbols, Numeric }
 
 /** The pages that make up a keyboard. Provide your own to change keys or add a language. */
 @Immutable
@@ -64,10 +67,13 @@ class KeyboardLayoutSet(
     val letters: KeyboardLayout,
     val symbols: KeyboardLayout,
     val numeric: KeyboardLayout,
+    /** Second page of symbols, reached from [symbols]. Defaults to [symbols] for sets that have none. */
+    val moreSymbols: KeyboardLayout = symbols,
 ) {
     fun layoutFor(page: KeyboardPage): KeyboardLayout = when (page) {
         KeyboardPage.Letters -> letters
         KeyboardPage.Symbols -> symbols
+        KeyboardPage.MoreSymbols -> moreSymbols
         KeyboardPage.Numeric -> numeric
     }
 
@@ -82,7 +88,8 @@ class KeyboardLayoutSet(
                     listOf<SoftKey>(SoftKey.Action(KeyAction.Shift, 1.5f)) + chars("zxcvbnm") + chars(",.-"),
                     listOf(
                         SoftKey.Action(KeyAction.ShowSymbols, 1.5f),
-                        SoftKey.Action(KeyAction.Space, 8.5f),
+                        SoftKey.Action(KeyAction.Space, 7.5f),
+                        SoftKey.Character("?"),
                         SoftKey.Action(KeyAction.Dismiss, 1.5f),
                     ),
                 ),
@@ -97,8 +104,26 @@ class KeyboardLayoutSet(
                     chars("!@#\$%&*") + chars("123") + SoftKey.Action(KeyAction.Backspace, 1.5f, repeatable = true),
                     chars("()-_=+~") + chars("456") + SoftKey.Gap(1.5f),
                     chars("\\;:\"'/^") + chars("789") + SoftKey.Action(KeyAction.Enter, 1.5f),
-                    listOf(SoftKey.Action(KeyAction.ShowLetters, 1f), SoftKey.Action(KeyAction.Space, 6f)) +
-                        listOf(SoftKey.Character("0", weight = 2f), SoftKey.Character(".")) +
+                    listOf(
+                        SoftKey.Action(KeyAction.ShowLetters, 1f),
+                        SoftKey.Action(KeyAction.ShowMoreSymbols, 1f),
+                        SoftKey.Action(KeyAction.Space, 5f),
+                    ) + listOf(SoftKey.Character("0", weight = 2f), SoftKey.Character(".")) +
+                        SoftKey.Action(KeyAction.Dismiss, 1.5f),
+                ),
+            ),
+            // The symbols that do not fit on the first page (like the second page behind the circled
+            // arrows on the TabTip symbols page), with the same numpad on the right.
+            moreSymbols = KeyboardLayout(
+                rows = listOf(
+                    chars("[]{}<>|") + chars("123") + SoftKey.Action(KeyAction.Backspace, 1.5f, repeatable = true),
+                    chars("`~^?") + SoftKey.Gap(3f) + chars("456") + SoftKey.Gap(1.5f),
+                    listOf<SoftKey>(SoftKey.Gap(7f)) + chars("789") + SoftKey.Action(KeyAction.Enter, 1.5f),
+                    listOf(
+                        SoftKey.Action(KeyAction.ShowLetters, 1f),
+                        SoftKey.Action(KeyAction.ShowSymbols, 1f),
+                        SoftKey.Action(KeyAction.Space, 5f),
+                    ) + listOf(SoftKey.Character("0", weight = 2f), SoftKey.Character(".")) +
                         SoftKey.Action(KeyAction.Dismiss, 1.5f),
                 ),
             ),

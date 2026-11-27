@@ -17,6 +17,7 @@ class KeyboardMetricsTest {
     fun fourRowPagesAreOneRowShorter() {
         assertEquals(234f, layouts.symbols.naturalHeight(dimensions).value, 0.01f)
         assertEquals(234f, layouts.numeric.naturalHeight(dimensions).value, 0.01f)
+        assertEquals(234f, layouts.moreSymbols.naturalHeight(dimensions).value, 0.01f)
     }
 
     @Test

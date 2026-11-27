@@ -15,6 +15,7 @@ class KeyboardLayoutTest {
     @Test fun lettersRowsAlign() = assertRowsAlign(KeyboardPage.Letters)
     @Test fun symbolsRowsAlign() = assertRowsAlign(KeyboardPage.Symbols)
     @Test fun numericRowsAlign() = assertRowsAlign(KeyboardPage.Numeric)
+    @Test fun moreSymbolsRowsAlign() = assertRowsAlign(KeyboardPage.MoreSymbols)
 
     @Test
     fun everyPageCanBackspaceAndDismissAndEnter() {
@@ -47,5 +48,37 @@ class KeyboardLayoutTest {
         // ...alongside symbols, on the same page (the TabTip "&123" style).
         listOf("!", "@", "#", "\$", "%", "&", "(", ")", "-", "_", "=", "+", "\"", "'", "/", "^")
             .forEach { assertTrue(it in typed, "missing symbol $it") }
+    }
+
+    @Test
+    fun everyPrintableAsciiCharacterCanBeTyped() {
+        // Passwords can contain any of these, so no key may be missing from the built-in pages.
+        val typeable = KeyboardPage.entries
+            .flatMap { page -> layouts.layoutFor(page).rows.flatten() }
+            .filterIsInstance<SoftKey.Character>()
+            .flatMap { listOf(it.lower, it.upper) } // upper: what Shift types on the letters page
+            .toSet()
+        val missing = ('!'..'~').map { it.toString() }.filter { it !in typeable }
+        assertTrue(missing.isEmpty(), "no key types: ${missing.joinToString(" ")}")
+    }
+
+    @Test
+    fun spaceCanBeTypedOnEveryTextPage() {
+        // The numeric pad is for number and date fields and deliberately has no Space.
+        (KeyboardPage.entries - KeyboardPage.Numeric).forEach { page ->
+            val actions = layouts.layoutFor(page).rows.flatten().filterIsInstance<SoftKey.Action>().map { it.action }
+            assertTrue(KeyAction.Space in actions, "$page needs Space")
+        }
+    }
+
+    @Test
+    fun theSymbolsPagesLinkToEachOtherAndBackToTheLetters() {
+        fun actionsOf(page: KeyboardPage) =
+            layouts.layoutFor(page).rows.flatten().filterIsInstance<SoftKey.Action>().map { it.action }
+        assertTrue(KeyAction.ShowSymbols in actionsOf(KeyboardPage.Letters))
+        assertTrue(KeyAction.ShowMoreSymbols in actionsOf(KeyboardPage.Symbols))
+        assertTrue(KeyAction.ShowSymbols in actionsOf(KeyboardPage.MoreSymbols))
+        assertTrue(KeyAction.ShowLetters in actionsOf(KeyboardPage.Symbols))
+        assertTrue(KeyAction.ShowLetters in actionsOf(KeyboardPage.MoreSymbols))
     }
 }

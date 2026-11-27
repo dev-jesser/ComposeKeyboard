@@ -15,7 +15,7 @@ launching `TabTip.exe` / `osk.exe` through native code.
 - **Reads each field's `KeyboardOptions`**: number/phone/decimal fields get a numeric pad, everything else
   gets QWERTY; `KeyboardCapitalization` drives auto-shift; `ImeAction` labels and drives the Enter key.
 - **Touch-friendly**: large keys, Shift with double-tap caps lock, press-and-hold Backspace repeat,
-  letters / symbols / numeric pages, dark and light themes.
+  letters / symbols (plus a second page of less common ones) / numeric pages, dark and light themes.
 - **No native code, no `TabTip.exe` path dependency.** Pure Kotlin, so it behaves the same on any Windows
   version (and on macOS / Linux).
 - **Foundation only.** No dependency on Material, so it fits whichever design system you use
@@ -180,7 +180,7 @@ In a **multi-line** field with no explicit `ImeAction`, Enter inserts a line bre
 | `KeyboardType` | Page |
 |---|---|
 | `Number`, `Phone`, `Decimal`, `NumberPassword` | Numeric pad (digits, `.`, `/`, `-`) |
-| everything else (`Text`, `Password`, `Email`, `Uri`, ...) | QWERTY (`@ _ - . ,` are on the main page; symbols via `?123`) |
+| everything else (`Text`, `Password`, `Email`, `Uri`, ...) | QWERTY (`@ _ - . , ?` are on the main page; more symbols via `?123`, and `[ ] { } < > | ` ~ ^ ?` behind its **More** key) |
 
 Tip: `PasswordVisualTransformation` alone does not set the keyboard type. Add
 `keyboardType = KeyboardType.Password` as shown above.

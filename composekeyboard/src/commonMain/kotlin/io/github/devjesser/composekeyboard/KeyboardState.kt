@@ -92,6 +92,7 @@ class KeyboardState(
                 KeyAction.Space -> input.commit(" ")
                 KeyAction.ShowLetters -> page = KeyboardPage.Letters
                 KeyAction.ShowSymbols -> page = KeyboardPage.Symbols
+                KeyAction.ShowMoreSymbols -> page = KeyboardPage.MoreSymbols
                 KeyAction.Dismiss -> input.dismiss()
             }
             is SoftKey.Gap -> Unit

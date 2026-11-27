@@ -11,4 +11,7 @@ internal fun KeyboardLayout.naturalHeight(dimensions: KeyboardDimensions): Dp =
 
 /** The tallest page of the set; the letters page for the built-in layouts. */
 internal fun KeyboardLayoutSet.tallestNaturalHeight(dimensions: KeyboardDimensions): Dp =
-    maxOf(letters.naturalHeight(dimensions), symbols.naturalHeight(dimensions), numeric.naturalHeight(dimensions))
+    maxOf(
+        maxOf(letters.naturalHeight(dimensions), symbols.naturalHeight(dimensions), numeric.naturalHeight(dimensions)),
+        moreSymbols.naturalHeight(dimensions),
+    )

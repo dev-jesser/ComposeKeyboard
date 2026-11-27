@@ -60,4 +60,8 @@ fun SymbolsPreview() = PreviewKeyboard(KeyboardPage.Symbols, KeyboardTheme.Dark)
 
 @Preview
 @Composable
+fun MoreSymbolsPreview() = PreviewKeyboard(KeyboardPage.MoreSymbols, KeyboardTheme.Dark)
+
+@Preview
+@Composable
 fun NumericPreview() = PreviewKeyboard(KeyboardPage.Numeric, KeyboardTheme.Dark, enterKeyStyle = EnterKeyStyle.Next)

@@ -125,4 +125,18 @@ class KeyboardStateTest {
         state.autoShift(KeyboardCapitalization.Words, "hello")
         assertEquals(ShiftState.Once, state.shift)
     }
+
+    @Test
+    fun moreSymbolsPageCanBeReachedAndLeft() {
+        start()
+        state.onKey(SoftKey.Action(KeyAction.ShowSymbols), input)
+        assertEquals(KeyboardPage.Symbols, state.page)
+        state.onKey(SoftKey.Action(KeyAction.ShowMoreSymbols), input)
+        assertEquals(KeyboardPage.MoreSymbols, state.page)
+        state.onKey(SoftKey.Action(KeyAction.ShowSymbols), input)
+        assertEquals(KeyboardPage.Symbols, state.page)
+        state.onKey(SoftKey.Action(KeyAction.ShowMoreSymbols), input)
+        state.onKey(SoftKey.Action(KeyAction.ShowLetters), input)
+        assertEquals(KeyboardPage.Letters, state.page)
+    }
 }

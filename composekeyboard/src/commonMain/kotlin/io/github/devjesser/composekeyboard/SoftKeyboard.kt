@@ -191,6 +191,7 @@ private fun KeyButton(
                     else KeyLabel(label, content, theme.dimensions.labelFontSize)
                 }
                 KeyAction.ShowSymbols -> KeyLabel("?123", content, theme.dimensions.labelFontSize)
+                KeyAction.ShowMoreSymbols -> KeyLabel("More", content, theme.dimensions.labelFontSize)
                 KeyAction.ShowLetters -> KeyLabel("ABC", content, theme.dimensions.labelFontSize)
                 KeyAction.Space -> KeyLabel("Space", content, theme.dimensions.labelFontSize)
             }
